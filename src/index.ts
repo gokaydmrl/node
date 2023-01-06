@@ -86,6 +86,7 @@ app.post("/login", (req: Request, res: Response) => {
       req.session.isAuth = true;
       console.log(`${name} exists`);
       console.log("req.session.isAuth", req.session.isAuth);
+      res.send()
     } else {
       req.session.isAuth = false;
       console.log("not loggedin");
