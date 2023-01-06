@@ -26,6 +26,13 @@ var app = (0, import_express.default)();
 app.use(import_express.default.json());
 app.use((0, import_cors.default)());
 app.set("trust proxy", 1);
+var users = [
+  {
+    fName: "g\xF6kay",
+    email: "abc@gmail.com",
+    userID: 1
+  }
+];
 app.use(
   (0, import_express_session.default)({
     name: "deneme",
@@ -33,36 +40,32 @@ app.use(
     resave: false,
     saveUninitialized: true,
     cookie: {
-      secure: true,
+      secure: false,
       maxAge: 6e5,
       sameSite: "strict"
     }
   })
 );
 app.get("/", (req, res) => {
-  console.log("req.session.page_views", req.session.page_views);
-  console.log("req.session", req.session);
-  if (req.session.page_views) {
-    req.session.page_views++;
-    res.send("You visited this page " + req.session.page_views + " times");
-  } else {
-    req.session.page_views = 1;
-    res.send("Welcome to this page for the first time!");
-  }
-});
-app.get("/login", (req, res) => {
   console.log("this is sess", req.session.cookie);
-  req.session.name = "asd";
-  if (req.session) {
+  console.log("req.session.", req.session.isAuth);
+  if (req.session.isAuth) {
     res.send("Welcome User");
   } else
     res.send("no welc");
 });
 app.post("/login", (req, res) => {
   const { name } = req.body;
-  if (name === "name") {
-    req.session.name = name;
-    console.log("success");
+  for (var x = 0; x < users.length; x++) {
+    if (users[x].fName.includes(name)) {
+      req.session.isAuth = true;
+      console.log(`${name} exists`);
+      console.log("req.session.isAuth", req.session.isAuth);
+    } else {
+      req.session.isAuth = false;
+      console.log("not loggedin");
+      console.log("req.session.isAuth", req.session.isAuth);
+    }
   }
 });
 app.listen(3001, () => {
