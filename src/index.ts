@@ -3,7 +3,8 @@ console.log("ne yazmak isterseasdasdn");
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import session, { SessionData } from "express-session";
-import * as redis from "redis";
+import Redis from "ioredis";
+const redis = new Redis();
 import connectRedis from "connect-redis";
 
 const app: Application = express();
@@ -34,15 +35,24 @@ const users: UserType[] = [
   },
 ];
 
-const RedisStore = connectRedis(session);
-const redisClient = redis.createClient({
-  legacyMode: true,
-  url: "redis://localhost:6379/",
+redis.set("mykey", "value");
+redis.get("mykey", (err, result) => {
+  if (err) {
+    console.error(err);
+  } else {
+    console.log(result); // Prints "value"
+  }
 });
+
+const RedisStore = connectRedis(session);
+// const redisClient = redis.createClient({
+//   legacyMode: true,
+//   url: "redis://localhost:6379/",
+// });
 
 app.use(
   session({
-    store: new RedisStore({ client: redisClient }),
+   //  store: new RedisStore(),
     name: "deneme",
     secret: "secret",
     resave: false, //
@@ -53,13 +63,13 @@ app.use(
     },
   })
 );
-redisClient.connect();
-redisClient.on("error", function (err) {
-  console.log("Could not establish a connection with redis. " + err);
-});
-redisClient.on("connect", function () {
-  console.log("Connected to redis successfully");
-});
+// redisClient.connect();
+// redisClient.on("error", function (err) {
+//   console.log("Could not establish a connection with redis. " + err);
+// });
+// redisClient.on("connect", function () {
+//   console.log("Connected to redis successfully");
+// });
 
 // app.get("/", (req: Request, res: Response) => {
 //   console.log("req.session.page_views", req.session.page_views);
@@ -77,7 +87,7 @@ redisClient.on("connect", function () {
 // });
 
 async function isAuthenticated(req: Request, res: Response, next) {
-  const isLogged = await redisClient.get("isAuth", (err, data) => {
+  const isLogged = await redis.get("isAuth", (err, data) => {
     if (err) {
       console.log("err redis", err);
       return;
@@ -118,8 +128,9 @@ app.post("/login", (req: Request, res: Response) => {
   if (includes) {
     req.session.userName = name;
     req.session.isAuth = true;
-    redisClient.set("userName", name);
-    redisClient.set("isAuth", "true");
+    req.session.userID = 4;
+    //  redisClient.set("userName", name);
+    //  redisClient.set("isAuth", "true");
 
     console.log(`${name} exists`);
     console.log("req session login", req.session);

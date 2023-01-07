@@ -21,9 +21,10 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 var import_express = __toESM(require("express"));
 var import_cors = __toESM(require("cors"));
 var import_express_session = __toESM(require("express-session"));
-var redis = __toESM(require("redis"));
+var import_ioredis = __toESM(require("ioredis"));
 var import_connect_redis = __toESM(require("connect-redis"));
 console.log("ne yazmak isterseasdasdn");
+var redis = new import_ioredis.default();
 var app = (0, import_express.default)();
 app.use(import_express.default.json());
 app.use((0, import_cors.default)());
@@ -35,14 +36,17 @@ var users = [
     userID: 1
   }
 ];
-var RedisStore = (0, import_connect_redis.default)(import_express_session.default);
-var redisClient = redis.createClient({
-  legacyMode: true,
-  url: "redis://localhost:6379/"
+redis.set("mykey", "value");
+redis.get("mykey", (err, result) => {
+  if (err) {
+    console.error(err);
+  } else {
+    console.log(result);
+  }
 });
+var RedisStore = (0, import_connect_redis.default)(import_express_session.default);
 app.use(
   (0, import_express_session.default)({
-    store: new RedisStore({ client: redisClient }),
     name: "deneme",
     secret: "secret",
     resave: false,
@@ -53,15 +57,8 @@ app.use(
     }
   })
 );
-redisClient.connect();
-redisClient.on("error", function(err) {
-  console.log("Could not establish a connection with redis. " + err);
-});
-redisClient.on("connect", function() {
-  console.log("Connected to redis successfully");
-});
 async function isAuthenticated(req, res, next) {
-  const isLogged = await redisClient.get("isAuth", (err, data) => {
+  const isLogged = await redis.get("isAuth", (err, data) => {
     if (err) {
       console.log("err redis", err);
       return;
@@ -80,8 +77,7 @@ app.post("/login", (req, res) => {
   if (includes) {
     req.session.userName = name;
     req.session.isAuth = true;
-    redisClient.set("userName", name);
-    redisClient.set("isAuth", "true");
+    req.session.userID = 4;
     console.log(`${name} exists`);
     console.log("req session login", req.session);
   } else {
