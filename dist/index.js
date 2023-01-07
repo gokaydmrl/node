@@ -36,17 +36,10 @@ var users = [
     userID: 1
   }
 ];
-redis.set("mykey", "value");
-redis.get("mykey", (err, result) => {
-  if (err) {
-    console.error(err);
-  } else {
-    console.log(result);
-  }
-});
 var RedisStore = (0, import_connect_redis.default)(import_express_session.default);
 app.use(
   (0, import_express_session.default)({
+    store: new RedisStore({ client: redis }),
     name: "deneme",
     secret: "secret",
     resave: false,
@@ -58,26 +51,26 @@ app.use(
   })
 );
 async function isAuthenticated(req, res, next) {
-  const isLogged = await redis.get("isAuth", (err, data) => {
-    if (err) {
-      console.log("err redis", err);
-      return;
-    }
-    console.log("data", data);
+  const isLogged = await redis.get("isAuth");
+  if (isLogged === "true") {
     next();
-  });
+  } else {
+    console.log("middleware said no ");
+  }
 }
 app.get("/", isAuthenticated, (req, res) => {
   console.log("getlendi");
   res.send("Welcome User");
 });
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
   const { name } = req.body;
   const includes = users.find((user) => user.fName === name);
   if (includes) {
     req.session.userName = name;
     req.session.isAuth = true;
     req.session.userID = 4;
+    await redis.set("userName", name);
+    await redis.set("isAuth", "true");
     console.log(`${name} exists`);
     console.log("req session login", req.session);
   } else {

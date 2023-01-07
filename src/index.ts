@@ -4,9 +4,9 @@ import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import session, { SessionData } from "express-session";
 import Redis from "ioredis";
-const redis = new Redis();
 import connectRedis from "connect-redis";
 
+const redis = new Redis();
 const app: Application = express();
 app.use(express.json());
 app.use(cors());
@@ -35,14 +35,14 @@ const users: UserType[] = [
   },
 ];
 
-redis.set("mykey", "value");
-redis.get("mykey", (err, result) => {
-  if (err) {
-    console.error(err);
-  } else {
-    console.log(result); // Prints "value"
-  }
-});
+//redis.set("mykey", "value");
+//redis.get("mykey", (err, result) => {
+//  if (err) {
+//    console.error(err);
+//  } else {
+//    console.log(result); // Prints "value"
+//  }
+//});
 
 const RedisStore = connectRedis(session);
 // const redisClient = redis.createClient({
@@ -52,7 +52,7 @@ const RedisStore = connectRedis(session);
 
 app.use(
   session({
-   //  store: new RedisStore(),
+    store: new RedisStore({ client: redis }),
     name: "deneme",
     secret: "secret",
     resave: false, //
@@ -87,22 +87,20 @@ app.use(
 // });
 
 async function isAuthenticated(req: Request, res: Response, next) {
-  const isLogged = await redis.get("isAuth", (err, data) => {
-    if (err) {
-      console.log("err redis", err);
-      return;
-    }
-    console.log("data", data);
+  const isLogged = await redis.get("isAuth");
+  if (isLogged === "true") {
     next();
-  });
-  // console.log(isLogged, "isLogged");
-
-  // if (isLogged === "true") {
-  //   next();
-  // } else {
-  //   console.log("middl said no");
-  // }
+  } else {
+    console.log("middleware said no ");
+  }
 }
+// console.log(isLogged, "isLogged");
+
+// if (isLogged === "true") {
+//   next();
+// } else {
+//   console.log("middl said no");
+// }
 
 app.get("/", isAuthenticated, (req: Request, res: Response) => {
   // console.log("this is sess", req.session.cookie);
@@ -122,13 +120,15 @@ app.get("/", isAuthenticated, (req: Request, res: Response) => {
 //   }
 // });
 
-app.post("/login", (req: Request, res: Response) => {
+app.post("/login", async (req: Request, res: Response) => {
   const { name } = req.body;
   const includes = users.find((user) => user.fName === name);
   if (includes) {
     req.session.userName = name;
     req.session.isAuth = true;
     req.session.userID = 4;
+    await redis.set("userName", name);
+    await redis.set("isAuth", "true");
     //  redisClient.set("userName", name);
     //  redisClient.set("isAuth", "true");
 
