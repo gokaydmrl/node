@@ -1,8 +1,11 @@
-console.log("ne yazmak istersen");
+console.log("ne yazmak isterseasdasdn");
 // npm run dev
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import session, { SessionData } from "express-session";
+import * as redis from "redis";
+import connectRedis from "connect-redis";
+
 const app: Application = express();
 app.use(express.json());
 app.use(cors());
@@ -31,19 +34,32 @@ const users: UserType[] = [
   },
 ];
 
+const RedisStore = connectRedis(session);
+const redisClient = redis.createClient({
+  legacyMode: true,
+  url: "redis://localhost:6379/",
+});
+
 app.use(
   session({
+    store: new RedisStore({ client: redisClient }),
     name: "deneme",
     secret: "secret",
     resave: false, //
     saveUninitialized: true,
     cookie: {
       secure: false, // This will only work if you have https enabled!
-      maxAge: 600000, // 1 min
-      sameSite: "strict",
+      maxAge: 600000,
     },
   })
 );
+redisClient.connect();
+redisClient.on("error", function (err) {
+  console.log("Could not establish a connection with redis. " + err);
+});
+redisClient.on("connect", function () {
+  console.log("Connected to redis successfully");
+});
 
 // app.get("/", (req: Request, res: Response) => {
 //   console.log("req.session.page_views", req.session.page_views);
@@ -60,45 +76,60 @@ app.use(
 //   }
 // });
 
-app.get("/", (req: Request, res: Response) => {
-  console.log("this is sess", req.session.cookie);
-  console.log("req.session.", req.session.isAuth);
-  if (req.session.isAuth) {
-    res.send("Welcome User");
-  } else res.send("no welc");
+async function isAuthenticated(req: Request, res: Response, next) {
+  const isLogged = await redisClient.get("isAuth", (err, data) => {
+    if (err) {
+      console.log("err redis", err);
+      return;
+    }
+    console.log("data", data);
+    next();
+  });
+  // console.log(isLogged, "isLogged");
+
+  // if (isLogged === "true") {
+  //   next();
+  // } else {
+  //   console.log("middl said no");
+  // }
+}
+
+app.get("/", isAuthenticated, (req: Request, res: Response) => {
+  // console.log("this is sess", req.session.cookie);
+  console.log("getlendi");
+
+  res.send("Welcome User");
 });
 
 // app.get("/", function (req, res) {
 //   if (req.session.page_views) {
+
 //     req.session.page_views++;
-//     console.log("You visited this page " + req.session.page_views + " times");
+//     res.send("You visited this page " + req.session.page_views + " times");
 //   } else {
 //     req.session.page_views = 1;
-//     console.log("Welcome to this page for the first time!");
+//     res.send("Welcome to this page for the first time!");
 //   }
 // });
 
 app.post("/login", (req: Request, res: Response) => {
   const { name } = req.body;
+  const includes = users.find((user) => user.fName === name);
+  if (includes) {
+    req.session.userName = name;
+    req.session.isAuth = true;
+    redisClient.set("userName", name);
+    redisClient.set("isAuth", "true");
 
-  for (var x = 0; x < users.length; x++) {
-    if (users[x].fName.includes(name)) {
-      req.session.isAuth = true;
-      console.log(`${name} exists`);
-      console.log("req.session.isAuth", req.session.isAuth);
-      res.send()
-    } else {
-      req.session.isAuth = false;
-      console.log("not loggedin");
-      console.log("req.session.isAuth", req.session.isAuth);
-    }
+    console.log(`${name} exists`);
+    console.log("req session login", req.session);
+    // console.log("req.session.isAuth", req.session.isAuth);
+  } else {
+    req.session.isAuth = false;
+    console.log("not loggedin");
+    // console.log("req.session.isAuth", req.session.isAuth);
   }
-
-  //  console.log(session);
-  // req.session.userName = name;
-  // console.log(req.session.isAuth);
-
-  // console.log("success");
+  res.send();
 });
 
 app.listen(3001, () => {
